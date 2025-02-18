@@ -249,7 +249,7 @@ message GiftStruct {
   //  specialEffectsMap = 20;
   Image icon = 21;
   uint32 actionType = 22;
-  // fixme 后面的就不写了还有几十个属性
+
 
 }
 

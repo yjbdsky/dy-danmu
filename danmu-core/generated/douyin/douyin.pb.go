@@ -2318,7 +2318,7 @@ type GiftStruct struct {
 	ForCustom          bool   `protobuf:"varint,19,opt,name=forCustom,proto3" json:"forCustom,omitempty"`
 	// specialEffectsMap = 20;
 	Icon       *Image `protobuf:"bytes,21,opt,name=icon,proto3" json:"icon,omitempty"`
-	ActionType uint32 `protobuf:"varint,22,opt,name=actionType,proto3" json:"actionType,omitempty"` // fixme 后面的就不写了还有几十个属性
+	ActionType uint32 `protobuf:"varint,22,opt,name=actionType,proto3" json:"actionType,omitempty"`
 }
 
 func (x *GiftStruct) Reset() {
