@@ -4,42 +4,42 @@
 
 **示例:**
 
-![](danmu-core/image/common-message.png)
-![](danmu-core/image/gift-message.png)
-![](danmu-core/image/template.png)
+![](image/common-message.png)
+![](image/gift-message.png)
+![](image/template.png)
 
 ## 详情
 
 ### websocket
 
-![](danmu-core/image/1.png)
-![](danmu-core/image/2.png)
+![](image/1.png)
+![](image/2.png)
 该wss请求为直播页面各项数据的推送，Payload包含 直播弹幕 礼物 直播间信息 礼物托盘 等数据,只需设置对应的room_id push_id 以及signature即可,
 从initiator进入可以看到创建一个websocket client，`_getSocketParams()`构建socket连接参数
-![](danmu-core/image/4.png)
-![](danmu-core/image/3.png)
-![](danmu-core/image/param.png)
+![](image/4.png)
+![](image/3.png)
+![](image/param.png)
 
 参考`biliup`项目的danmuka模块代码，可以看到该项目引用了一个webmssdk.es5.js的文件用来构建signature参数
-![](danmu-core/image/5.png)
-![](danmu-core/image/6.png)
+![](image/5.png)
+![](image/6.png)
 从`_getSocketParams()` debug进入，会看到调用`H()`方法用多个参数构建md5，md5传入`frontierSign()`进行构建signature，该函数来源自webmssdk.es5.js，本项目也参考这个方法，引入golang的js解释器，生成签名
-![](danmu-core/image/7.png)
-![](danmu-core/image/8.png)
-![](danmu-core/image/9.png)
+![](image/7.png)
+![](image/8.png)
+![](image/9.png)
 还能找到websocket client处理数据，发送Ack，发送心跳等方法。以及PushFrame携带的protobuf数据结构
-![](danmu-core/image/10.png)
-![](danmu-core/image/11.png)
-![](danmu-core/image/12.png)
+![](image/10.png)
+![](image/11.png)
+![](image/12.png)
 
 实际开发中发现websocket服务端会不定时的断开连接，直播关闭后也只是发送了一个关闭ws连接的信号，如果此时发送心跳的话依然可以接受到pong回应。无法正确判断直播是否关闭，也不能正确判断是否开播。最终参考`biliup`代码，由新的协程周期性的检测直播状态，控制websocket连接的开始和停止。
 
-![](danmu-core/image/13.png)
-![](danmu-core/image/14.png)
+![](image/13.png)
+![](image/14.png)
 
 该请求返回值包含status代码，2则为正在直播。另外导出了rpc接口供其他程序控制弹幕监控协程。
 
-![](danmu-core/image/15.png)
+![](image/15.png)
 
 
 
@@ -65,6 +65,19 @@
     );
   ```
 4. 启动 `cmd/main.go`
+
+## danmu-http danmu-ui
+> 基于golang gin gorm grpc的后端管理 + vite vue3 element-plus tailwindcss的前端ui。实现对danmu-core存储的数据查看以及计算。
+
+**示例:**
+
+![16.png](image%2F16.png)
+![17.png](image%2F17.png)
+![18.png](image%2F18.png)
+![19.png](image%2F19.png)
+![20.png](image%2F20.png)
+
+
 
 ## todo list
 

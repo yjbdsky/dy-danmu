@@ -230,7 +230,7 @@ onMounted(fetchGiftMessage)
           v-model:page-size="pageSize"
           :total="total"
           :pager-count="5"
-          small
+          size="small"
           layout="prev, pager, next"
           @current-change="fetchGiftMessage"
         />
