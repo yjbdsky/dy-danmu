@@ -1,6 +1,9 @@
 package model
 
-import "github.com/google/uuid"
+import (
+	"github.com/google/uuid"
+	"gorm.io/gorm/clause"
+)
 
 const TableNameAuth = "auths"
 
@@ -25,6 +28,14 @@ func (*Auth) TableName() string {
 func (auth *Auth) Insert() error {
 	auth.ID = uuid.New().String()
 	return DB.Create(auth).Error
+}
+
+func (auth *Auth) InsertOrUpdate() error {
+	auth.ID = uuid.New().String()
+	return DB.Clauses(clause.OnConflict{
+		Columns:   []clause.Column{{Name: "email"}}, // 基于 Email 判断冲突
+		UpdateAll: true,                             // 更新所有字段，包括 ID
+	}).Create(&auth).Error
 }
 
 func (auth *Auth) Update() error {

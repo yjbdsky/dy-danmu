@@ -2,10 +2,6 @@
 import { ref, onMounted } from 'vue'
 import dayjs from 'dayjs'
 
-const props = defineProps<{
-  modelValue: [number, number]
-}>()
-
 const emit = defineEmits<{
   (e: 'update:modelValue', value: [number, number]): void
 }>()

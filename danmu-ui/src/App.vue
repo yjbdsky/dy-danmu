@@ -3,12 +3,16 @@ import TheNavbar from './components/TheNavbar.vue'
 import MobileNavbar from './components/mobile/MobileNavbar.vue'
 import { useRoute } from 'vue-router'
 import { useDevice } from './composables/useDevice'
-import { computed } from 'vue'
+import { computed, onMounted } from 'vue'
 
 const route = useRoute()
 const { isMobile } = useDevice()
 const showNavbar = computed(() => route.path !== '/login')
-console.log('Current route:', route.path)  // 添加控制台日志
+onMounted(() => {
+  console.log('BASE_URL:', import.meta.env.VITE_BASE_URL)
+  console.log('API_URL:', import.meta.env.VITE_API_URL)
+  console.log('所有环境变量：', import.meta.env)
+})
 </script>
 
 <template>

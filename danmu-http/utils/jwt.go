@@ -1,13 +1,14 @@
 package utils
 
 import (
+	"danmu-http/setting"
 	"errors"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
 )
 
-var jwtSecret = []byte("your-secret-key") // 在实际应用中应该通过配置文件或环境变量设置
+var jwtSecret = []byte(setting.JWTSetting.Secret) // 在实际应用中应该通过配置文件或环境变量设置
 
 type Claims struct {
 	ID    string `json:"id"`

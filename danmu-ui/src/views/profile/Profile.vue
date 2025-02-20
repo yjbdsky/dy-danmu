@@ -31,7 +31,7 @@ const rules = {
   ],
   confirmPassword: [
     { 
-      validator: (rule: any, value: string, callback: Function) => {
+      validator: (_: any, value: string, callback: Function) => {
         if (form.password && value !== form.password) {
           callback(new Error('两次输入的密码不一致'))
         } else {

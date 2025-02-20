@@ -29,7 +29,7 @@ const rules = {
   ],
   password: [
     { 
-      validator: (rule: any, value: string, callback: Function) => {
+      validator: (_: any, value: string, callback: Function) => {
         if (value && (value.length < 6 || value.length > 50)) {
           callback(new Error('密码长度需在6-50位之间'))
         } else {

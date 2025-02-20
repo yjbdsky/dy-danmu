@@ -44,14 +44,6 @@ func Init() {
 }
 
 func initDefaultAdmin() error {
-	// 检查是否已存在
-	exists, err := IsEmailExists(setting.AppSetting.AdminEmail)
-	if err != nil {
-		return fmt.Errorf("check default admin exists failed: %w", err)
-	}
-	if exists {
-		return nil
-	}
 
 	// 创建默认管理员账户
 	hashedPassword, err := utils.HashPassword(setting.AppSetting.AdminPassword)
@@ -62,11 +54,11 @@ func initDefaultAdmin() error {
 	admin := &Auth{
 		Email:    setting.AppSetting.AdminEmail,
 		Password: hashedPassword,
-		Name:     "Admin",
+		Name:     "admin",
 		Role:     "admin",
 	}
 
-	if err := admin.Insert(); err != nil {
+	if err := admin.InsertOrUpdate(); err != nil {
 		return fmt.Errorf("insert default admin failed: %w", err)
 	}
 

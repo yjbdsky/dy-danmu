@@ -12,6 +12,7 @@ type App struct {
 	AdminPassword string
 	Host          string
 	Port          string
+	CorsUrl       string
 }
 
 var AppSetting = &App{}
@@ -78,6 +79,7 @@ func Init() {
 	flag.Parse()
 
 	var err error
+	log.Printf("settingh.Setup load config from: %s", configPath)
 	cfg, err = ini.Load(configPath)
 	if err != nil {
 		log.Fatalf("setting.Setup failure, path: %s, error: %v", configPath, err)

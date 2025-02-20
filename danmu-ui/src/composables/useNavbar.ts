@@ -1,6 +1,6 @@
 import { useAuthStore } from '../stores/auth'
 import { computed } from 'vue'
-import { House, User, Setting } from '@element-plus/icons-vue'
+import { House, Setting } from '@element-plus/icons-vue'
 import type { Component } from 'vue'
 
 interface NavItem {
