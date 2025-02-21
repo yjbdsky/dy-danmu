@@ -35,29 +35,6 @@ func (*GiftMessage) TableName() string {
 	return TableNameGiftMessage
 }
 
-func GetGiftMessagesByToUserIdTimestampRoomId(toUserIds []uint64, roomDisplayId string, begin int64, end int64) ([]*GiftMessage, error) {
-	db := DB.Model(&GiftMessage{})
-	if len(toUserIds) > 0 {
-		db = db.Where("to_user_id IN (?)", toUserIds)
-	}
-	if begin != 0 {
-		db = db.Where("timestamp >= ?", begin)
-	}
-	if end != 0 {
-		db = db.Where("timestamp <= ?", end)
-	}
-	if roomDisplayId != "" {
-		db = db.Where("room_display_id = ?", roomDisplayId)
-	}
-	db = db.Order("timestamp ASC")
-	var giftMessages []*GiftMessage
-	err := db.Find(&giftMessages).Error
-	if err != nil {
-		return nil, err
-	}
-	return giftMessages, nil
-}
-
 func GetToUsersByRoomDisplayId(roomDisplayId string) ([]*ToUser, error) {
 	var toUsers []*ToUser
 	err := DB.Model(&GiftMessage{}).

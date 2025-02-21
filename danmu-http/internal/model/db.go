@@ -84,11 +84,3 @@ func Close() {
 		}
 	}
 }
-
-func BeginTx() *gorm.DB {
-	return DB.Begin()
-}
-
-func CommitTx(tx *gorm.DB) error {
-	return tx.Commit().Error
-}
