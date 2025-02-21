@@ -1,10 +1,9 @@
 package setting
 
 import (
-	"log" // 使用标准库的 log
-	"os"
-
+	"flag"
 	"github.com/go-ini/ini"
+	"log" // 使用标准库的 log
 )
 
 type Database struct {
@@ -46,18 +45,23 @@ type Rpc struct {
 var RpcSetting = &Rpc{}
 
 var cfg *ini.File
+var configPath string
+
+func init() {
+	flag.StringVar(&configPath, "config", "conf/app.ini", "path to config file")
+}
 
 func Init() {
-	path := os.Getenv("CONFIG_PATH")
-	if path == "" {
-		path = "conf/app.ini"
-	}
+	flag.Parse()
+
 	var err error
-	cfg, err = ini.Load(path)
+	log.Printf("settingh.Setup load config from: %s", configPath)
+	cfg, err = ini.Load(configPath)
 	if err != nil {
-		log.Fatalf("setting.Setup failure, path: %s, error: %v", path, err)
+		log.Fatalf("setting.Setup failure, path: %s, error: %v", configPath, err)
 		return
 	}
+
 	mapTo("database", DatabaseSetting)
 	mapTo("log", LogSetting)
 	mapTo("rpc", RpcSetting)

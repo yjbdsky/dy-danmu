@@ -120,3 +120,47 @@ func GetGiftMessageWithConditionPage(req *validate.GiftMessageQuery) ([]*GiftMes
 
 	return giftMessages, total, nil
 }
+
+// 添加分页查询方法
+func GetGiftMessagesByToUserIdTimestampRoomIdWithPage(toUserIds []uint64, roomDisplayId string, begin, end int64, page, pageSize int) ([]*GiftMessage, error) {
+	db := DB.Model(&GiftMessage{})
+	if roomDisplayId != "" {
+		db = db.Where("room_display_id = ?", roomDisplayId)
+	}
+
+	if len(toUserIds) > 0 {
+		db = db.Where("to_user_id IN (?)", toUserIds)
+	}
+	if begin != 0 && end != 0 {
+		db = db.Where("timestamp BETWEEN ? AND ?", begin, end)
+	}
+	db = db.Order("timestamp ASC").
+		Offset((page - 1) * pageSize).
+		Limit(pageSize)
+
+	var messages []*GiftMessage
+	if err := db.Find(&messages).Error; err != nil {
+		return nil, err
+	}
+	return messages, nil
+}
+
+// 添加获取总数的方法
+func GetGiftMessagesCount(toUserIds []uint64, roomDisplayId string, begin, end int64) (int64, error) {
+	var count int64
+	db := DB.Model(&GiftMessage{})
+	if roomDisplayId != "" {
+		db = db.Where("room_display_id = ?", roomDisplayId)
+	}
+
+	if len(toUserIds) > 0 {
+		db = db.Where("to_user_id IN (?)", toUserIds)
+	}
+	if begin != 0 && end != 0 {
+		db = db.Where("timestamp BETWEEN ? AND ?", begin, end)
+	}
+	if err := db.Count(&count).Error; err != nil {
+		return 0, err
+	}
+	return count, nil
+}

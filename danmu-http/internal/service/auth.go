@@ -34,17 +34,17 @@ func NewAuthService() AuthService {
 func (s *authService) Register(ctx context.Context, req *validate.RegisterRequest) error {
 	actor, err := middleware.GetAuthFromContext(ctx)
 	if err != nil {
-		logger.Error().Err(err).Msg("get auth from context failed")
 		return err
 	}
 	logger.Info().
 		Str("operator", actor.Email).
 		Str("new_email", req.Email).
+		Str("role", req.Role).
 		Msg("registering new user")
 
 	exists, err := model.IsEmailExists(req.Email)
 	if err != nil {
-		logger.Error().Err(err).Msg("check email exists failed")
+		logger.Error().Err(err).Str("email", req.Email).Msg("check email exists failed")
 		return err
 	}
 	if exists {
@@ -83,13 +83,21 @@ func (s *authService) Register(ctx context.Context, req *validate.RegisterReques
 func (s *authService) Login(ctx context.Context, req *validate.LoginRequest) (string, error) {
 	auth, err := model.GetAuthByEmail(req.Email)
 	if err != nil {
-		logger.Error().Err(err).Msg("get auth by email failed")
+		logger.Error().
+			Err(err).
+			Str("email", req.Email).
+			Msg("login attempt failed")
 		return "", err
 	}
 
 	if !utils.CheckPassword(req.Password, auth.Password) {
 		return "", errors.New("invalid password")
 	}
+
+	logger.Info().
+		Str("email", auth.Email).
+		Str("role", auth.Role).
+		Msg("user logged in successfully")
 
 	token, err := utils.GenerateToken(auth.ID, auth.Email, auth.Name, auth.Role)
 	if err != nil {
@@ -102,7 +110,6 @@ func (s *authService) Login(ctx context.Context, req *validate.LoginRequest) (st
 func (s *authService) UpdateSelf(ctx context.Context, req *validate.UpdateSelfRequest) error {
 	auth, err := middleware.GetAuthFromContext(ctx)
 	if err != nil {
-		logger.Error().Err(err).Msg("get auth from context failed")
 		return err
 	}
 	logger.Info().
@@ -141,10 +148,7 @@ func (s *authService) ResetPassword(ctx context.Context, userID string) error {
 		logger.Error().Err(err).Msg("get auth from context failed")
 		return err
 	}
-	logger.Info().
-		Str("operator", auth.Email).
-		Str("target_user_id", userID).
-		Msg("resetting user password")
+
 	oldauth, err := model.GetAuthByID(userID)
 	if err != nil {
 		logger.Error().Err(err).Msg("get auth by id failed")

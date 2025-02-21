@@ -6,6 +6,7 @@ import (
 	"danmu-http/utils"
 	"fmt"
 	"log"
+	"time"
 
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -34,6 +35,8 @@ func Init() {
 	}
 	sqlDB.SetMaxIdleConns(setting.DatabaseSetting.MaxIdleConns)
 	sqlDB.SetMaxOpenConns(setting.DatabaseSetting.MaxOpenConns)
+	sqlDB.SetConnMaxLifetime(5 * time.Minute) // 连接最大生命周期
+	sqlDB.SetConnMaxIdleTime(2 * time.Minute) // 空闲连接最大生命周期
 
 	// 初始化默认管理员账户
 	if setting.AppSetting.AdminEmail != "" && setting.AppSetting.AdminPassword != "" {

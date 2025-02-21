@@ -19,6 +19,54 @@ const selectedToUserIds = ref<number[]>([])
 const giftList = ref<UserGift[]>([])
 const loading = ref(false)
 
+// 分页相关的响应式变量
+const currentPage = ref(1)
+const pageSize = ref(20)
+const total = ref(0)
+
+// 当前页数据
+const currentPageData = ref<UserGift[]>([])
+
+// 计算分页数据
+function updateCurrentPageData() {
+  const start = (currentPage.value - 1) * pageSize.value
+  const end = start + pageSize.value
+  currentPageData.value = giftList.value.slice(start, end)
+}
+
+// 处理页码改变
+function handlePageChange(page: number) {
+  currentPage.value = page
+  updateCurrentPageData()
+}
+
+// 处理每页条数改变
+function handleSizeChange(size: number) {
+  pageSize.value = size
+  currentPage.value = 1
+  updateCurrentPageData()
+}
+
+// 展开行的懒加载控制
+const expandedRows = ref(new Set<string>())
+
+// 处理展开行事件
+function handleExpand(row: UserGift, expanded: boolean) {
+  const rowKey = `${row.user_display_id}-${row.to_user_display_id}`
+  if (expanded) {
+    expandedRows.value.add(rowKey)
+  } else {
+    expandedRows.value.delete(rowKey)
+  }
+}
+
+// 判断是否需要渲染展开行内容
+function shouldRenderExpanded(row: UserGift) {
+  const rowKey = `${row.user_display_id}-${row.to_user_display_id}`
+  return expandedRows.value.has(rowKey)
+}
+
+// 获取数据
 async function fetchGiftRanking() {
   loading.value = true
   try {
@@ -29,6 +77,8 @@ async function fetchGiftRanking() {
       end: timeRange.value[1]
     })
     giftList.value = res.data.data
+    total.value = giftList.value.length
+    updateCurrentPageData()
   } catch (error) {
     console.error('[GiftRanking] Fetch error:', error)
   } finally {
@@ -41,6 +91,11 @@ onMounted(fetchGiftRanking)
 
 function formatTime(timestamp: number) {
   return dayjs(timestamp).format('YYYY-MM-DD HH:mm:ss')
+}
+
+// 获取排序后的礼物列表
+function getSortedGiftList(gifts: UserGift['gift_list']) {
+  return [...gifts].sort((a, b) => b.timestamp - a.timestamp)
 }
 </script>
 
@@ -65,13 +120,14 @@ function formatTime(timestamp: number) {
     <!-- 礼物排行列表 -->
     <div class="overflow-x-auto">
       <el-table 
-        :data="giftList" 
+        :data="currentPageData" 
         class="w-full"
+        @expand-change="handleExpand"
       >
         <el-table-column type="expand" width="20">
           <template #default="{ row }">
-            <div class="p-4 bg-gray-50">
-              <el-table :data="row.gift_list" class="w-full">
+            <div v-if="shouldRenderExpanded(row)" class="p-4 bg-gray-50">
+              <el-table :data="getSortedGiftList(row.gift_list)" class="w-full">
                 <el-table-column label="礼物信息" min-width="200">
                   <template #default="{ row: gift }">
                     <div class="flex items-center gap-2">
@@ -108,20 +164,19 @@ function formatTime(timestamp: number) {
           </template>
         </el-table-column>
 
-        <!-- 排名 -->
         <el-table-column width="22" align="center">
           <template #default="{ $index }">
-            <template v-if="$index < 50">
+            <template v-if="(currentPage - 1) * pageSize + $index + 1 <= 50">
               <span 
                 class="text-[11px] font-medium inline-block leading-none"
                 :class="{
-                  'text-yellow-500': $index === 0,
-                  'text-gray-500': $index === 1,
-                  'text-orange-500': $index === 2,
-                  'text-blue-500': $index > 2
+                  'text-yellow-500': (currentPage - 1) * pageSize + $index === 0,
+                  'text-gray-500': (currentPage - 1) * pageSize + $index === 1,
+                  'text-orange-500': (currentPage - 1) * pageSize + $index === 2,
+                  'text-blue-500': (currentPage - 1) * pageSize + $index > 2
                 }"
               >
-                {{ $index + 1 }}
+                {{ (currentPage - 1) * pageSize + $index + 1 }}
               </span>
             </template>
           </template>
@@ -160,10 +215,25 @@ function formatTime(timestamp: number) {
 
         <el-table-column label="金额" min-width="68" align="right">
           <template #default="{ row }">
-            <span class="text-orange-500 font-medium text-[11px] tabular-nums">{{ row.total }}</span>
+            <span class="text-orange-500 font-medium text-[11px] tabular-nums">
+              {{ row.total }}
+            </span>
           </template>
         </el-table-column>
       </el-table>
+
+      <!-- 分页器 -->
+      <div class="flex justify-end mt-4">
+        <el-pagination
+          v-model:current-page="currentPage"
+          v-model:page-size="pageSize"
+          :page-sizes="[20, 50, 100]"
+          :total="total"
+          layout="total, sizes, prev, pager, next"
+          @size-change="handleSizeChange"
+          @current-change="handlePageChange"
+        />
+      </div>
     </div>
   </div>
 </template>
@@ -186,4 +256,4 @@ function formatTime(timestamp: number) {
 .el-table tr:hover > td {
   background-color: var(--el-table-row-hover-bg-color);
 }
-</style> 
+</style>

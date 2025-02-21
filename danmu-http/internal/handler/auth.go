@@ -42,6 +42,7 @@ func (h *AuthHandler) Register(c *gin.Context) {
 }
 
 func (h *AuthHandler) Login(c *gin.Context) {
+	logger.Debug().Interface("req", c).Msg("login")
 	var req validate.LoginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		logger.Error().Err(err).Msg("bind request failed")

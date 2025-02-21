@@ -36,12 +36,20 @@ func (s *liveConfService) ListLiveConf(ctx context.Context) ([]*model.LiveConf, 
 func (s *liveConfService) AddLiveConf(ctx context.Context, req *validate.LiveConfAddRequest) error {
 	auth, err := middleware.GetAuthFromContext(ctx)
 	if err != nil {
-		logger.Error().Err(err).Msg("get auth from context failed")
 		return err
 	}
+
 	if auth.Name == "" {
 		auth.Name = "system"
 	}
+
+	logger.Info().
+		Str("operator", auth.Email).
+		Str("room_id", req.RoomDisplayID).
+		Str("name", req.Name).
+		Bool("enable", req.Enable).
+		Msg("adding new live configuration")
+
 	now := time.Now().Unix()
 	liveConf := &model.LiveConf{
 		RoomDisplayID: req.RoomDisplayID,
@@ -56,7 +64,11 @@ func (s *liveConfService) AddLiveConf(ctx context.Context, req *validate.LiveCon
 
 	err = model.DB.Transaction(func(tx *gorm.DB) error {
 		if err := liveConf.Insert(tx); err != nil {
-			logger.Error().Err(err).Str("auth_id", auth.ID).Str("auth_name", auth.Name).Msg("add live conf failed")
+			logger.Error().
+				Err(err).
+				Str("operator", auth.Email).
+				Str("room_id", req.RoomDisplayID).
+				Msg("failed to add live configuration")
 			return err
 		}
 
@@ -93,12 +105,16 @@ func (s *liveConfService) AddLiveConf(ctx context.Context, req *validate.LiveCon
 func (s *liveConfService) UpdateLiveConf(ctx context.Context, req *validate.LiveConfUpdateRequest) error {
 	auth, err := middleware.GetAuthFromContext(ctx)
 	if err != nil {
-		logger.Error().Err(err).Msg("get auth from context failed")
 		return err
 	}
-	if auth.Name == "" {
-		auth.Name = "system"
-	}
+
+	logger.Info().
+		Str("operator", auth.Email).
+		Int64("conf_id", req.ID).
+		Str("room_id", req.RoomDisplayID).
+		Bool("enable", req.Enable).
+		Msg("updating live configuration")
+
 	conf, err := model.GetLiveConfById(req.ID)
 	if err != nil {
 		logger.Error().Err(err).Str("auth_id", auth.ID).Str("auth_name", auth.Name).Msg("get live conf by id failed")
@@ -151,12 +167,13 @@ func (s *liveConfService) UpdateLiveConf(ctx context.Context, req *validate.Live
 func (s *liveConfService) DeleteLiveConf(ctx context.Context, id int64) error {
 	auth, err := middleware.GetAuthFromContext(ctx)
 	if err != nil {
-		logger.Error().Err(err).Msg("get auth from context failed")
 		return err
 	}
-	if auth.Name == "" {
-		auth.Name = "system"
-	}
+
+	logger.Info().
+		Str("operator", auth.Email).
+		Int64("conf_id", id).
+		Msg("deleting live configuration")
 
 	rpcClient, err := rpc.GetClient()
 	if err != nil {
