@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, nextTick } from 'vue'
 import { getGiftMessage } from '../api/gift_message'
 import type { GiftMessage } from '../types/models/gift_message'
 import TimeRangePicker from './TimeRangePicker.vue'
@@ -33,7 +33,10 @@ const total = ref(0)
 orderBy.value = 'timestamp'
 orderDirection.value = 'desc'
 
-async function fetchGiftMessage() {
+async function fetchGiftMessage(resetPage = true) {
+  if (resetPage) {
+    currentPage.value = 1
+  }
   loading.value = true
   try {
     const res = await getGiftMessage({
@@ -68,6 +71,24 @@ function formatTime(timestamp: number) {
   return dayjs(timestamp).format('YYYY-MM-DD HH:mm:ss')
 }
 
+// 处理底部分页器页码改变（滚动到顶部）
+function handleBottomPageChange(page: number) {
+  currentPage.value = page
+  fetchGiftMessage(false)
+  nextTick(() => {
+    window.scrollTo({
+      top: 0,
+      behavior: 'smooth'
+    })
+  })
+}
+
+// 处理顶部分页器页码改变（不滚动）
+function handleTopPageChange(page: number) {
+  currentPage.value = page
+  fetchGiftMessage(false)
+}
+
 onMounted(fetchGiftMessage)
 </script>
 
@@ -80,7 +101,7 @@ onMounted(fetchGiftMessage)
         <el-input
           v-model="search"
           placeholder="搜索"
-          class="!w-full sm:!max-w-[565px]"
+          class="!w-[300px] sm:!w-[565px]"
           clearable
           @keyup.enter="fetchGiftMessage"
         />
@@ -127,6 +148,19 @@ onMounted(fetchGiftMessage)
 
     <!-- 礼物消息列表 -->
     <div class="overflow-x-auto">
+      <!-- 顶部分页器 -->
+      <div v-if="total > 0" class="flex justify-end mb-4">
+        <el-pagination
+          v-model:current-page="currentPage"
+          v-model:page-size="pageSize"
+          :total="total"
+          :pager-count="5"
+          size="small"
+          layout="total, sizes, prev, pager, next"
+          @current-change="handleTopPageChange"
+        />
+      </div>
+
       <el-table 
         :data="giftList" 
         class="w-full"
@@ -224,6 +258,7 @@ onMounted(fetchGiftMessage)
         </el-table-column>
       </el-table>
 
+      <!-- 修改底部分页器 -->
       <div class="mt-4 flex justify-end">
         <el-pagination
           v-model:current-page="currentPage"
@@ -231,8 +266,8 @@ onMounted(fetchGiftMessage)
           :total="total"
           :pager-count="5"
           size="small"
-          layout="prev, pager, next"
-          @current-change="fetchGiftMessage"
+          layout="total, sizes, prev, pager, next"
+          @current-change="handleBottomPageChange"
         />
       </div>
     </div>

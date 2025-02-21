@@ -71,9 +71,7 @@
             :style="{ width: width || '240px' }"
             :popper-class="`width-${width || '240px'} user-select-dropdown`"
             placeholder="请选择用户"
-            filterable
-            remote
-            :remote-method="() => {}"
+            :filterable="false"
             @change="(newValue: number[]) => emit('update:modelValue', newValue)"
         >
             <template #prefix>

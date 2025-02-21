@@ -34,5 +34,24 @@ export default defineConfig({
         changeOrigin: true
       }
     }
+  },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          // 将 Element Plus 相关依赖打包到单独的 chunk 中
+          'element-plus': ['element-plus'],
+          // 将 dayjs 相关依赖打包到单独的 chunk 中
+          'dayjs': ['dayjs'],
+          // 将其他第三方库打包到 vendor chunk 中
+          'vendor': [
+            'vue',
+            'vue-router',
+            'pinia',
+            '@vueuse/core'
+          ]
+        }
+      }
+    }
   }
 })

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, nextTick } from 'vue'
 import { getGiftRanking } from '../api/gift_message'
 import type { UserGift } from '../types/models/gift_message'
 import TimeRangePicker from './TimeRangePicker.vue'
@@ -21,7 +21,7 @@ const loading = ref(false)
 
 // 分页相关的响应式变量
 const currentPage = ref(1)
-const pageSize = ref(20)
+const pageSize = ref(50)
 const total = ref(0)
 
 // 当前页数据
@@ -38,6 +38,13 @@ function updateCurrentPageData() {
 function handlePageChange(page: number) {
   currentPage.value = page
   updateCurrentPageData()
+  // 滚动到表格顶部
+  nextTick(() => {
+    window.scrollTo({
+      top: 0,
+      behavior: 'smooth'
+    })
+  })
 }
 
 // 处理每页条数改变
@@ -119,6 +126,21 @@ function getSortedGiftList(gifts: UserGift['gift_list']) {
 
     <!-- 礼物排行列表 -->
     <div class="overflow-x-auto">
+      <!-- 顶部分页器 -->
+      <div v-if="total > 0" class="flex justify-end mb-4">
+        <el-pagination
+          v-model:current-page="currentPage"
+          v-model:page-size="pageSize"
+          :page-sizes="[20, 50, 100]"
+          :total="total"
+          :pager-count="5"
+          size="small"
+          layout="total, sizes, prev, pager, next"
+          @size-change="handleSizeChange"
+          @current-change="handlePageChange"
+        />
+      </div>
+
       <el-table 
         :data="currentPageData" 
         class="w-full"
@@ -229,6 +251,8 @@ function getSortedGiftList(gifts: UserGift['gift_list']) {
           v-model:page-size="pageSize"
           :page-sizes="[20, 50, 100]"
           :total="total"
+          :pager-count="5"
+          size="small"
           layout="total, sizes, prev, pager, next"
           @size-change="handleSizeChange"
           @current-change="handlePageChange"
