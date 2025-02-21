@@ -45,7 +45,6 @@ async function fetchUsers() {
 function handleSelectChange(values: number[]) {
   selectedUserIds.value = values
   emit('update:modelValue', values)  // 添加这行，确保更新父组件
-  console.log('Selected display_ids:', values)
 }
 
 onMounted(fetchUsers)

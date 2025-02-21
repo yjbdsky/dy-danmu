@@ -62,15 +62,14 @@ function handleSort({ prop, order }: { prop: string; order: string }) {
   fetchCommonMessage()
 }
 
-// 处理底部分页器页码改变（滚动到顶部）
+const tableContainer = ref<HTMLElement | null>(null)
+
+// 修改底部分页器处理函数
 function handleBottomPageChange(page: number) {
   currentPage.value = page
   fetchCommonMessage(false)
   nextTick(() => {
-    window.scrollTo({
-      top: 0,
-      behavior: 'smooth'
-    })
+    tableContainer.value?.scrollIntoView({ behavior: 'smooth' })
   })
 }
 
@@ -121,7 +120,10 @@ onMounted(fetchCommonMessage)
     </div>
 
     <!-- 消息列表 -->
-    <div class="overflow-x-auto">
+    <div 
+      ref="tableContainer"
+      class="overflow-x-auto"
+    >
       <!-- 顶部分页器 -->
       <div v-if="total > 0" class="flex justify-end mb-4">
         <el-pagination

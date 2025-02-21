@@ -27,6 +27,8 @@ const total = ref(0)
 // 当前页数据
 const currentPageData = ref<UserGift[]>([])
 
+const tableContainer = ref<HTMLElement | null>(null)
+
 // 计算分页数据
 function updateCurrentPageData() {
   const start = (currentPage.value - 1) * pageSize.value
@@ -34,16 +36,18 @@ function updateCurrentPageData() {
   currentPageData.value = giftList.value.slice(start, end)
 }
 
-// 处理页码改变
-function handlePageChange(page: number) {
+// 处理页码改变（不滚动）
+function handleTopPageChange(page: number) {
   currentPage.value = page
   updateCurrentPageData()
-  // 滚动到表格顶部
+}
+
+// 处理底部分页器页码改变（滚动到表格顶部）
+function handleBottomPageChange(page: number) {
+  currentPage.value = page
+  updateCurrentPageData()
   nextTick(() => {
-    window.scrollTo({
-      top: 0,
-      behavior: 'smooth'
-    })
+    tableContainer.value?.scrollIntoView({behavior: 'smooth'})
   })
 }
 
@@ -76,6 +80,7 @@ function shouldRenderExpanded(row: UserGift) {
 // 获取数据
 async function fetchGiftRanking() {
   loading.value = true
+  currentPage.value = 1  // 重置到第一页
   try {
     const res = await getGiftRanking({
       room_display_id: props.roomDisplayId,
@@ -125,26 +130,29 @@ function getSortedGiftList(gifts: UserGift['gift_list']) {
     </div>
 
     <!-- 礼物排行列表 -->
-    <div class="overflow-x-auto">
+    <div
+        ref="tableContainer"
+        class="overflow-x-auto"
+    >
       <!-- 顶部分页器 -->
       <div v-if="total > 0" class="flex justify-end mb-4">
         <el-pagination
-          v-model:current-page="currentPage"
-          v-model:page-size="pageSize"
-          :page-sizes="[20, 50, 100]"
-          :total="total"
-          :pager-count="5"
-          size="small"
-          layout="total, sizes, prev, pager, next"
-          @size-change="handleSizeChange"
-          @current-change="handlePageChange"
+            v-model:current-page="currentPage"
+            v-model:page-size="pageSize"
+            :page-sizes="[20, 50, 100]"
+            :total="total"
+            :pager-count="5"
+            size="small"
+            layout="total, sizes, prev, pager, next"
+            @size-change="handleSizeChange"
+            @current-change="handleTopPageChange"
         />
       </div>
 
-      <el-table 
-        :data="currentPageData" 
-        class="w-full"
-        @expand-change="handleExpand"
+      <el-table
+          :data="currentPageData"
+          class="w-full"
+          @expand-change="handleExpand"
       >
         <el-table-column type="expand" width="20">
           <template #default="{ row }">
@@ -154,15 +162,15 @@ function getSortedGiftList(gifts: UserGift['gift_list']) {
                   <template #default="{ row: gift }">
                     <div class="flex items-center gap-2">
                       <el-image
-                        :src="gift.image"
-                        class="w-8 h-8 object-cover rounded"
-                        fit="cover"
+                          :src="gift.image"
+                          class="w-8 h-8 object-cover rounded"
+                          fit="cover"
                       />
                       <span>{{ gift.message }}</span>
                     </div>
                   </template>
                 </el-table-column>
-                
+
                 <el-table-column label="价值" min-width="100" align="right">
                   <template #default="{ row: gift }">
                     <div class="flex flex-col items-end">
@@ -189,9 +197,9 @@ function getSortedGiftList(gifts: UserGift['gift_list']) {
         <el-table-column width="22" align="center">
           <template #default="{ $index }">
             <template v-if="(currentPage - 1) * pageSize + $index + 1 <= 50">
-              <span 
-                class="text-[11px] font-medium inline-block leading-none"
-                :class="{
+              <span
+                  class="text-[11px] font-medium inline-block leading-none"
+                  :class="{
                   'text-yellow-500': (currentPage - 1) * pageSize + $index === 0,
                   'text-gray-500': (currentPage - 1) * pageSize + $index === 1,
                   'text-orange-500': (currentPage - 1) * pageSize + $index === 2,
@@ -223,11 +231,11 @@ function getSortedGiftList(gifts: UserGift['gift_list']) {
               <span class="text-[11px] text-blue-600 break-all">
                 {{ row.to_user_name }}
               </span>
-              <el-tag 
-                v-if="row.to_user_display_id" 
-                size="small" 
-                type="info" 
-                class="!text-xs"
+              <el-tag
+                  v-if="row.to_user_display_id"
+                  size="small"
+                  type="info"
+                  class="!text-xs"
               >
                 {{ row.to_user_display_id }}
               </el-tag>
@@ -244,18 +252,18 @@ function getSortedGiftList(gifts: UserGift['gift_list']) {
         </el-table-column>
       </el-table>
 
-      <!-- 分页器 -->
+      <!-- 底部分页器 -->
       <div class="flex justify-end mt-4">
         <el-pagination
-          v-model:current-page="currentPage"
-          v-model:page-size="pageSize"
-          :page-sizes="[20, 50, 100]"
-          :total="total"
-          :pager-count="5"
-          size="small"
-          layout="total, sizes, prev, pager, next"
-          @size-change="handleSizeChange"
-          @current-change="handlePageChange"
+            v-model:current-page="currentPage"
+            v-model:page-size="pageSize"
+            :page-sizes="[20, 50, 100]"
+            :total="total"
+            :pager-count="5"
+            size="small"
+            layout="total, sizes, prev, pager, next"
+            @size-change="handleSizeChange"
+            @current-change="handleBottomPageChange"
         />
       </div>
     </div>

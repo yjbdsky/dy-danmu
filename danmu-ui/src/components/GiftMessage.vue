@@ -29,6 +29,8 @@ const loading = ref(false)
 const giftList = ref<GiftMessage[]>([])
 const total = ref(0)
 
+const tableContainer = ref<HTMLElement | null>(null)
+
 // 初始化排序为时间倒序
 orderBy.value = 'timestamp'
 orderDirection.value = 'desc'
@@ -76,10 +78,7 @@ function handleBottomPageChange(page: number) {
   currentPage.value = page
   fetchGiftMessage(false)
   nextTick(() => {
-    window.scrollTo({
-      top: 0,
-      behavior: 'smooth'
-    })
+    tableContainer.value?.scrollIntoView({ behavior: 'smooth' })
   })
 }
 
@@ -147,7 +146,10 @@ onMounted(fetchGiftMessage)
     </div>
 
     <!-- 礼物消息列表 -->
-    <div class="overflow-x-auto">
+    <div 
+      ref="tableContainer" 
+      class="overflow-x-auto"
+    >
       <!-- 顶部分页器 -->
       <div v-if="total > 0" class="flex justify-end mb-4">
         <el-pagination
