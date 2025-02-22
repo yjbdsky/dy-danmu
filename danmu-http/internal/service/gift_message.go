@@ -50,19 +50,9 @@ type Gift struct {
 }
 
 func (s *giftMessageService) ListGiftRanking(ctx context.Context, req *validate.ListGiftRankingRequest) ([]*UserGift, error) {
-	start := time.Now()
-	defer func() {
-		logger.Info().
-			Dur("total_duration", time.Since(start)).
-			Str("room_id", req.RoomDisplayId).
-			Int64("begin", req.Begin).
-			Int64("end", req.End).
-			Msg("ListGiftRanking completed")
-	}()
-
-	if req == nil {
-		return nil, fmt.Errorf("request cannot be nil")
-	}
+	// 添加超时控制
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
 
 	// 获取总记录数
 	total, err := model.GetGiftMessagesCount(req.ToUserIds, req.RoomDisplayId, req.Begin, req.End)
@@ -70,178 +60,234 @@ func (s *giftMessageService) ListGiftRanking(ctx context.Context, req *validate.
 		return nil, fmt.Errorf("failed to get total count: %w", err)
 	}
 
-	// 设置分页参数
-	const pageSize = 2000
+	// 设置分页和worker参数
+	const (
+		pageSize   = 5000
+		maxWorkers = 5  // 控制并发数量
+		bufferSize = 10 // 结果通道缓冲
+	)
 	pageCount := (total + pageSize - 1) / pageSize
 
-	// 创建通道接收每个goroutine的处理结果
-	resultChan := make(chan map[string]*UserGift, pageCount)
-	errChan := make(chan error, pageCount)
+	// 创建任务和结果通道
+	type pageTask struct {
+		pageNum int64
+		ctx     context.Context
+	}
+	tasks := make(chan pageTask, pageCount)
+	results := make(chan map[string]*UserGift, bufferSize)
+	errors := make(chan error, 1)
+
+	// 启动worker pool
 	var wg sync.WaitGroup
-
-	// 启动多个goroutine并行处理每一页数据
-	for page := int64(1); page <= pageCount; page++ {
+	for i := 0; i < maxWorkers; i++ {
 		wg.Add(1)
-		go func(pageNum int64) {
+		go func() {
 			defer wg.Done()
-
-			// 获取当前页数据
-			messages, err := model.GetGiftMessagesByToUserIdTimestampRoomIdWithPage(
-				req.ToUserIds,
-				req.RoomDisplayId,
-				req.Begin,
-				req.End,
-				int(pageNum),
-				pageSize,
-			)
-			if err != nil {
-				errChan <- fmt.Errorf("failed to get page %d: %w", pageNum, err)
-				return
-			}
-
-			// 处理当前页数据
-			userGiftMap := make(map[string]*UserGift)
-			comboMap := make(map[string]*struct {
-				currentCombo int64
-				gift         *Gift
-			})
-
-			// 处理消息
-			for _, msg := range messages {
-				userKey := fmt.Sprintf("%d_%d", msg.UserID, msg.ToUserID)
-
-				// 获取或创建用户礼物统计
-				userGift, exists := userGiftMap[userKey]
-				if !exists {
-					userGift = &UserGift{
-						UserID:          msg.UserID,
-						UserName:        msg.UserName,
-						UserDisplayId:   msg.UserDisplayId,
-						RoomDisplayId:   msg.RoomDisplayId,
-						RoomName:        msg.RoomName,
-						ToUserID:        msg.ToUserID,
-						ToUserName:      msg.ToUserName,
-						ToUserDisplayId: msg.ToUserDisplayId,
-						GiftList:        make([]*Gift, 0),
-					}
-					userGiftMap[userKey] = userGift
+			for task := range tasks {
+				// 检查上下文是否取消
+				if task.ctx.Err() != nil {
+					return
 				}
 
-				// 转换comboCount从string到int64
-				comboCount, err := strconv.ParseInt(msg.ComboCount, 10, 64)
+				userGiftMap, err := s.processPage(req, task.pageNum, pageSize)
 				if err != nil {
-					comboCount = 1
+					select {
+					case errors <- err:
+					default:
+					}
+					return
 				}
 
-				// 创建礼物对象
-				gift := &Gift{
-					GiftID:       msg.GiftID,
-					GiftName:     msg.GiftName,
-					DiamondCount: int64(msg.DiamondCount),
-					ComboCount:   comboCount,
-					Image:        msg.Image,
-					Message:      msg.Message,
-					Timestamp:    msg.Timestamp,
-				}
-
-				// Update combo key to include ToUserID
-				comboKey := fmt.Sprintf("%d_%d_%d", msg.UserID, msg.ToUserID, msg.GiftID)
-				combo, exists := comboMap[comboKey]
-
-				if exists {
-					if comboCount > combo.currentCombo {
-						// 连击数增加，更新当前连击信息
-						combo.currentCombo = comboCount
-						combo.gift = gift
-					} else {
-						// 连击中断，保存之前的峰值
-						if combo.gift != nil {
-							userGift.GiftList = append(userGift.GiftList, combo.gift)
-							userGift.Total += combo.gift.DiamondCount * combo.gift.ComboCount
-						}
-						// 开始新的连击序列
-						comboMap[comboKey] = &struct {
-							currentCombo int64
-							gift         *Gift
-						}{
-							currentCombo: comboCount,
-							gift:         gift,
-						}
-					}
-				} else {
-					// 新的连击序列
-					comboMap[comboKey] = &struct {
-						currentCombo int64
-						gift         *Gift
-					}{
-						currentCombo: comboCount,
-						gift:         gift,
-					}
+				select {
+				case results <- userGiftMap:
+				case <-task.ctx.Done():
+					return
 				}
 			}
-
-			// 处理最后的连击
-			for comboKey, combo := range comboMap {
-				if combo.gift != nil {
-					parts := strings.Split(comboKey, "_")
-					userID, _ := strconv.ParseUint(parts[0], 10, 64)
-					toUserID, _ := strconv.ParseUint(parts[1], 10, 64)
-					userKey := fmt.Sprintf("%d_%d", userID, toUserID)
-
-					userGift := userGiftMap[userKey]
-					userGift.GiftList = append(userGift.GiftList, combo.gift)
-					userGift.Total += combo.gift.DiamondCount * combo.gift.ComboCount
-				}
-			}
-
-			resultChan <- userGiftMap
-		}(page)
+		}()
 	}
 
-	// 等待所有goroutine完成
+	// 发送任务
+	go func() {
+		for page := int64(1); page <= pageCount; page++ {
+			select {
+			case tasks <- pageTask{pageNum: page, ctx: ctx}:
+			case <-ctx.Done():
+				return
+			}
+		}
+		close(tasks)
+	}()
+
+	// 等待所有worker完成并关闭结果通道
 	go func() {
 		wg.Wait()
-		close(resultChan)
-		close(errChan)
+		close(results)
+		close(errors)
 	}()
 
 	// 检查是否有错误
-	for err := range errChan {
+	select {
+	case err := <-errors:
 		if err != nil {
 			return nil, err
 		}
+	default:
 	}
 
-	// 合并所有页的结果
+	// 合并结果并排序
+	return s.mergeAndSortResults(ctx, results)
+}
+
+// processPage 处理单个分页的数据
+func (s *giftMessageService) processPage(req *validate.ListGiftRankingRequest, pageNum int64, pageSize int) (map[string]*UserGift, error) {
+	messages, err := model.GetGiftMessagesByToUserIdTimestampRoomIdWithPage(
+		req.ToUserIds,
+		req.RoomDisplayId,
+		req.Begin,
+		req.End,
+		int(pageNum),
+		pageSize,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get page %d: %w", pageNum, err)
+	}
+
+	userGiftMap := make(map[string]*UserGift)
+	comboMap := make(map[string]*struct {
+		currentCombo int64
+		gift         *Gift
+	})
+
+	// 处理消息
+	for _, msg := range messages {
+		userKey := fmt.Sprintf("%d_%d", msg.UserID, msg.ToUserID)
+
+		// 获取或创建用户礼物统计
+		userGift, exists := userGiftMap[userKey]
+		if !exists {
+			userGift = &UserGift{
+				UserID:          msg.UserID,
+				UserName:        msg.UserName,
+				UserDisplayId:   msg.UserDisplayId,
+				RoomDisplayId:   msg.RoomDisplayId,
+				RoomName:        msg.RoomName,
+				ToUserID:        msg.ToUserID,
+				ToUserName:      msg.ToUserName,
+				ToUserDisplayId: msg.ToUserDisplayId,
+				GiftList:        make([]*Gift, 0, 20), // 预分配容量
+			}
+			userGiftMap[userKey] = userGift
+		}
+
+		s.processGiftMessage(msg, userGift, comboMap)
+	}
+
+	// 处理剩余的连击
+	s.processRemainingCombos(comboMap, userGiftMap)
+
+	return userGiftMap, nil
+}
+
+// processGiftMessage 处理单个礼物消息
+func (s *giftMessageService) processGiftMessage(msg *model.GiftMessage, userGift *UserGift, comboMap map[string]*struct {
+	currentCombo int64
+	gift         *Gift
+}) {
+	comboCount, _ := strconv.ParseInt(msg.ComboCount, 10, 64)
+	if comboCount == 0 {
+		comboCount = 1
+	}
+
+	gift := &Gift{
+		GiftID:       msg.GiftID,
+		GiftName:     msg.GiftName,
+		DiamondCount: int64(msg.DiamondCount),
+		ComboCount:   comboCount,
+		Image:        msg.Image,
+		Message:      msg.Message,
+		Timestamp:    msg.Timestamp,
+	}
+
+	comboKey := fmt.Sprintf("%d_%d_%d", msg.UserID, msg.ToUserID, msg.GiftID)
+	if combo, exists := comboMap[comboKey]; exists {
+		if comboCount > combo.currentCombo {
+			combo.currentCombo = comboCount
+			combo.gift = gift
+		} else {
+			if combo.gift != nil {
+				userGift.GiftList = append(userGift.GiftList, combo.gift)
+				userGift.Total += combo.gift.DiamondCount * combo.gift.ComboCount
+			}
+			comboMap[comboKey] = &struct {
+				currentCombo int64
+				gift         *Gift
+			}{
+				currentCombo: comboCount,
+				gift:         gift,
+			}
+		}
+	} else {
+		comboMap[comboKey] = &struct {
+			currentCombo int64
+			gift         *Gift
+		}{
+			currentCombo: comboCount,
+			gift:         gift,
+		}
+	}
+}
+
+// processRemainingCombos 处理剩余的连击
+func (s *giftMessageService) processRemainingCombos(comboMap map[string]*struct {
+	currentCombo int64
+	gift         *Gift
+}, userGiftMap map[string]*UserGift) {
+	for comboKey, combo := range comboMap {
+		if combo.gift != nil {
+			parts := strings.Split(comboKey, "_")
+			userID, _ := strconv.ParseUint(parts[0], 10, 64)
+			toUserID, _ := strconv.ParseUint(parts[1], 10, 64)
+			userKey := fmt.Sprintf("%d_%d", userID, toUserID)
+
+			userGift := userGiftMap[userKey]
+			userGift.GiftList = append(userGift.GiftList, combo.gift)
+			userGift.Total += combo.gift.DiamondCount * combo.gift.ComboCount
+		}
+	}
+}
+
+// mergeAndSortResults 合并并排序结果
+func (s *giftMessageService) mergeAndSortResults(ctx context.Context, results chan map[string]*UserGift) ([]*UserGift, error) {
 	finalMap := make(map[string]*UserGift)
-	for pageResult := range resultChan {
-		for key, gift := range pageResult {
-			if existing, ok := finalMap[key]; ok {
-				// 合并礼物列表和总值
-				existing.GiftList = append(existing.GiftList, gift.GiftList...)
-				existing.Total += gift.Total
-			} else {
-				finalMap[key] = gift
+
+	// 合并结果
+	for pageResult := range results {
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		default:
+			for key, gift := range pageResult {
+				if existing, ok := finalMap[key]; ok {
+					existing.GiftList = append(existing.GiftList, gift.GiftList...)
+					existing.Total += gift.Total
+				} else {
+					finalMap[key] = gift
+				}
 			}
 		}
 	}
 
-	// 转换为切片并排序
+	// 转换为切片
 	result := make([]*UserGift, 0, len(finalMap))
 	for _, v := range finalMap {
 		result = append(result, v)
 	}
 
+	// 排序
 	sort.Slice(result, func(i, j int) bool {
 		return result[i].Total > result[j].Total
 	})
-
-	logger.Info().
-		Int("total_records", int(total)).
-		Int("page_count", int(pageCount)).
-		Int("result_count", len(result)).
-		Dur("total_duration", time.Since(start)).
-		Msg("Parallel processing completed")
 
 	return result, nil
 }
