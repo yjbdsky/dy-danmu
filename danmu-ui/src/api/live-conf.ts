@@ -19,7 +19,7 @@ export function createLiveConf(data: CreateLiveConfRequest) {
 }
 
 export function updateLiveConf(data: UpdateLiveConfRequest) {
-  return api.put<ApiResponse<null>>(`/api/live-conf/`, data)
+  return api.put<ApiResponse<null>>(`/api/live-conf`, data)
 }
 
 export function deleteLiveConf(id: string) {
