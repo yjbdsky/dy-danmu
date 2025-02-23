@@ -76,44 +76,29 @@ onMounted(fetchLiveConf)
     </div>
 
     <!-- 标签页 -->
-    <el-tabs v-model="activeTab" class="bg-white rounded-lg shadow-sm p-3 sm:p-4">
+    <el-tabs 
+      v-model="activeTab" 
+      class="bg-white rounded-lg shadow-sm p-3 sm:p-4"
+    >
       <el-tab-pane label="礼物排行" name="gift-rank">
-        <div v-if="loading" class="h-96 flex items-center justify-center">
-          <el-skeleton :rows="5" animated />
-        </div>
         <GiftRanking 
-          v-else-if="liveConf?.room_display_id"
+          v-if="activeTab === 'gift-rank' && !loading && liveConf?.room_display_id"
           :room-display-id="liveConf.room_display_id"
         />
-        <div v-else class="h-96 flex items-center justify-center text-gray-400">
-          无法加载房间信息
-        </div>
       </el-tab-pane>
       
       <el-tab-pane label="礼物消息" name="gift-message">
-        <div v-if="loading" class="h-96 flex items-center justify-center">
-          <el-skeleton :rows="5" animated />
-        </div>
-        <GiftMessage
-          v-else-if="liveConf?.room_display_id"
+        <GiftMessage 
+          v-if="activeTab === 'gift-message' && !loading && liveConf?.room_display_id"
           :room-display-id="liveConf.room_display_id"
         />
-        <div v-else class="h-96 flex items-center justify-center text-gray-400">
-          无法加载房间信息
-        </div>
       </el-tab-pane>
       
       <el-tab-pane label="普通消息" name="common-message">
-        <div v-if="loading" class="h-96 flex items-center justify-center">
-          <el-skeleton :rows="5" animated />
-        </div>
-        <CommonMessage
-          v-else-if="liveConf?.room_display_id"
+        <CommonMessage 
+          v-if="activeTab === 'common-message' && !loading && liveConf?.room_display_id"
           :room-display-id="liveConf.room_display_id"
         />
-        <div v-else class="h-96 flex items-center justify-center text-gray-400">
-          无法加载房间信息
-        </div>
       </el-tab-pane>
     </el-tabs>
   </div>
