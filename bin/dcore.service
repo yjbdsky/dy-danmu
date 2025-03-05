@@ -1,0 +1,15 @@
+[Unit]
+Description=dcore
+After=network.target
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+#Type=notify  ##该选项在ubuntu下会导致卡住
+Restart=always
+RestartSec=5s
+LimitNOFILE=65536
+TimeoutStartSec=0
+ExecStart=/home/ye/project/dy-danmu/bin/dcore.sh
+[Install]
+WantedBy=multi-user.target
