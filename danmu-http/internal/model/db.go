@@ -44,6 +44,25 @@ func Init() {
 			logger.Error().Err(err).Msg("init default admin failed")
 		}
 	}
+
+	if !DB.Migrator().HasTable(&Auth{}) {
+		DB.Migrator().AutoMigrate(&Auth{})
+	}
+
+	if !DB.Migrator().HasTable(&CommonMessage{}) {
+		DB.Migrator().AutoMigrate(&CommonMessage{})
+	}
+
+	if !DB.Migrator().HasTable(&GiftMessage{}) {
+		DB.Migrator().AutoMigrate(&GiftMessage{})
+	}
+
+	if !DB.Migrator().HasTable(&LiveConf{}) {
+		DB.Migrator().AutoMigrate(&LiveConf{})
+	}
+	if !DB.Migrator().HasTable(&User{}) {
+		DB.Migrator().AutoMigrate(&User{})
+	}
 }
 
 func initDefaultAdmin() error {
