@@ -4,7 +4,6 @@ import (
 	"danmu-http/internal/handler"
 	"danmu-http/internal/service"
 	"danmu-http/middleware"
-
 	"github.com/gin-gonic/gin"
 )
 
@@ -31,6 +30,13 @@ func SetupRouter() *gin.Engine {
 	r.Use(gin.Recovery())
 	r.Use(middleware.Cors())
 
+	InitResourceServer(r)
+
+	html := NewHtmlHandler()
+	r.GET("/", html.Index)
+	r.NoRoute(html.RedirectIndex)
+
+	//InitResource(r)
 	api := r.Group("/api")
 	{
 		// 不需要认证的路由
