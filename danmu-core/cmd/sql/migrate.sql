@@ -1,3 +1,4 @@
+CREATE SCHEMA live;
 SET search_path TO live;
 
 create table common_messages
